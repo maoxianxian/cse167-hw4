@@ -30,7 +30,7 @@ Geometry::Geometry(const char* filepath)
 Geometry::~Geometry(){}
 void Geometry::draw(GLuint shaderProgram, glm::mat4 m)
 {
-	m = m*centermat;
+	m = m;
 	glm::mat4 modelview = Window::V * m;
 	GLuint uProjection = glGetUniformLocation(shaderProgram, "projection");
 	GLuint uModelview = glGetUniformLocation(shaderProgram, "modelview");

@@ -9,12 +9,16 @@
 const char* window_title = "GLFW Starter Project";
 GLint shaderProgram;
 GLint shader2;
+GLint shader3;
+GLuint VBO, VAO, VAO2,VBO2;
 Cube *cbe;
 // On some systems you need to change this to the absolute path
 #define VERTEX_SHADER_PATH "../shader.vert"
 #define FRAGMENT_SHADER_PATH "../shader.frag"
 #define SHADER2_PATH "../shader2.vert"
+#define SHADER3_PATH "../shader3.vert"
 #define FRAG2_PATH "../shader2.frag"
+#define FRAG3_PATH "../shader3.frag"
 // Default camera parameters
 glm::vec3 cam_pos(0.0f, 0.0f, 20.0f);		// e  | Position of camera
 glm::vec3 cam_look_at(0.0f, 0.0f, 0.0f);	// d  | This is where the camera looks at
@@ -32,7 +36,11 @@ double lastTime;
 int nbFrames = 0;
 Transform * root;
 std::vector<Transform*> controlpoints;
-Transform* currentpoint;
+int currentpoint;
+std::vector<glm::vec3> linevertices;
+std::vector<glm::vec3> controlhandles;
+Geometry * point;
+Transform*car;
 void Window::initialize_objects()
 {
 	root = new Transform(glm::mat4(1.0f));
@@ -40,22 +48,80 @@ void Window::initialize_objects()
 	//  the shader program. Make sure you have the correct filepath up top
 	shaderProgram = LoadShaders(VERTEX_SHADER_PATH, FRAGMENT_SHADER_PATH);
 	shader2 = LoadShaders(SHADER2_PATH, FRAG2_PATH);
-	Geometry * point = new Geometry("C:\\Users\\c7ye\\Desktop\\CSE167StarterCode2-master\\sphere.obj");
-	for (int i = 0; i < 8; i++)
+	shader3 = LoadShaders(SHADER3_PATH, FRAG3_PATH);
+	point = new Geometry("C:\\Users\\c7ye\\Desktop\\CSE167StarterCode2-master\\sphere.obj");
+	 car = new Transform(glm::mat4(1.0f));
+	 car->addChild(point);
+	 car->scale(0.5, 0.5, 0.5);
+	for (int i = 0; i < 24; i++)
 	{
-		Transform * group = new Transform(glm::mat4(1.0f));
-		for (int j = 0; j < 4; j++)
+		Transform * temp = new Transform(glm::mat4(1.0f));
+		if (i % 3 == 1)
 		{
-			Transform * temp = new Transform(glm::mat4(1.0f));
-			temp->id = i*4+j;
-			temp->addChild(point);
-			temp->translate((i*4+j) * 0.5, 0, 0);
-			temp->scale(0.2, 0.2, 0.2);
-			controlpoints.push_back(temp);
-			group->addChild(temp);
+			temp->color =glm::vec3(1,0,(float)i/255.0f);
 		}
-		root->addChild(group);
+		else
+		{
+			temp->color = glm::vec3(0, 1, (float)i/255.0f);
+		}
+		temp->addChild(point);
+		temp->translate((i) * 0.5, 0, 0);
+		temp->scale(0.1, 0.1, 0.1);
+		controlpoints.push_back(temp);
+		root->addChild(temp);
 	}
+	for (int i = 0; i < 8; i++) {
+		glm::vec4 p0 = controlpoints[i * 3+1]->toParent[3];
+		glm::vec4 p1 = controlpoints[i * 3 + 2]->toParent[3];
+		glm::vec4 p2 = controlpoints[(i * 3 + 3)%24]->toParent[3];
+		glm::vec4 p3 = controlpoints[(i * 3 + 4) % 24]->toParent[3];
+		for (int j = 0; j < 150; j++)
+		{
+			float t = (float)j / 150.0f;
+			glm::vec3 temp = pow(1 - t, 3)*p0 + 3 * pow(1 - t, 2)*t*p1 + 3 * (1 - t)*t*t*p2 + t*t*t*p3;
+			linevertices.push_back(temp);
+		}
+	}
+	
+	glGenVertexArrays(1, &VAO);
+	glGenBuffers(1, &VBO);
+	glBindVertexArray(VAO);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3)*linevertices.size(), &linevertices[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0,// This first parameter x should be the same as the number passed into the line "layout (location = x)" in the vertex shader. In this case, it's 0. Valid values are 0 to GL_MAX_UNIFORM_LOCATIONS.
+		3, // This second line tells us how any components there are per vertex. In this case, it's 3 (we have an x, y, and z component)
+		GL_FLOAT, // What type these components are
+		GL_FALSE, // GL_TRUE means the values should be normalized. GL_FALSE means they shouldn't
+		3 * sizeof(GLfloat), // Offset between consecutive indices. Since each of our vertices have 3 floats, they should have the size of 3 floats in between
+		(GLvoid*)0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+
+	for (int i = 0; i < controlpoints.size(); i++)
+	{
+		if (i % 3 != 1)
+		{
+			controlhandles.push_back(controlpoints[i]->toParent[3]);
+		}
+	}
+
+	glGenVertexArrays(1, &VAO2);
+	glGenBuffers(1, &VBO2);
+	glBindVertexArray(VAO2);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO2);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3)*controlhandles.size(), &controlhandles[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0,// This first parameter x should be the same as the number passed into the line "layout (location = x)" in the vertex shader. In this case, it's 0. Valid values are 0 to GL_MAX_UNIFORM_LOCATIONS.
+		3, // This second line tells us how any components there are per vertex. In this case, it's 3 (we have an x, y, and z component)
+		GL_FLOAT, // What type these components are
+		GL_FALSE, // GL_TRUE means the values should be normalized. GL_FALSE means they shouldn't
+		3 * sizeof(GLfloat), // Offset between consecutive indices. Since each of our vertices have 3 floats, they should have the size of 3 floats in between
+		(GLvoid*)0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+
+	std::cout << controlhandles.size() << std::endl;
 	cbe= new Cube();
 }
 
@@ -63,7 +129,9 @@ void Window::initialize_objects()
 void Window::clean_up()
 {
 	glDeleteProgram(shaderProgram);
-	
+	controlpoints.clear();
+	linevertices.clear();
+	controlhandles.clear();
 }
 
 unsigned char* Window::loadPPM(const char* filename, int& width, int& height)
@@ -217,13 +285,13 @@ void Window::mouse_callback(GLFWwindow* window, int button, int action, int mods
 		glfwGetCursorPos(window, &prexpos, &preypos);
 		unsigned char pix[4];
 		glReadPixels(prexpos, height-preypos,1,1,GL_RGBA,GL_UNSIGNED_BYTE,&pix);
-		if (pix[1] == 0 && pix[2] == 0 && pix[0] < 32)
+		if (pix[1] == 0 || pix[0] == 0 && pix[2] < 24)
 		{
-			currentpoint = controlpoints[(int)(pix[0])];
+			currentpoint = (int)(pix[2]);
 		}
 		else
 		{
-			currentpoint = NULL;
+			currentpoint = -1;
 		}
 	}
 	if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
@@ -231,7 +299,28 @@ void Window::mouse_callback(GLFWwindow* window, int button, int action, int mods
 		glfwGetCursorPos(window, &prerightx, &prerighty);
 	}
 }
+void Window::drawCurves()
+{
+	glUniform3fv(glGetUniformLocation(shader2, "id"), 1, &glm::vec3(0,0,0)[0]);
+	glm::mat4 modelview = V;
+	GLuint uProjection = glGetUniformLocation(shader2, "projection");
+	GLuint uModelview = glGetUniformLocation(shader2, "modelview");
+	//std::cout <<P[0][0]<<std::endl;
 
+	glUniformMatrix4fv(uProjection, 1, GL_FALSE, &P[0][0]);
+	glUniformMatrix4fv(uModelview, 1, GL_FALSE, &modelview[0][0]);
+	glBindVertexArray(VAO);
+	glDrawArrays(GL_LINE_STRIP, 0, 1200);
+	glBindVertexArray(0);
+	
+	glUniform3fv(glGetUniformLocation(shader2, "id"), 1, &glm::vec3(0, 0, 1)[0]);
+	glBindVertexArray(VAO2);
+	//std::cout << controlhandles.size() << std::endl;
+	glDrawArrays(GL_LINES, 0, 16);
+	glBindVertexArray(0);
+
+
+}
 void Window::display_callback(GLFWwindow* window)
 {
 	// Clear the color and depth buffers
@@ -242,15 +331,117 @@ void Window::display_callback(GLFWwindow* window)
 	cbe->draw(shaderProgram);
 	glUseProgram(shader2);
 	root->draw(shader2,glm::mat4(1.0f));
+	glUseProgram(shader3);
+	car->draw(shader3,glm::mat4(1.0f));
+	drawCurves();
 	// Render the cube	
 	int state = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
 	if (state == GLFW_PRESS)
 	{
 		double xpos, ypos;
 		glfwGetCursorPos(window, &xpos, &ypos);
-		if (currentpoint&&(xpos != prexpos || ypos != preypos))
+		if (currentpoint>=0&&(xpos != prexpos || ypos != preypos))
 		{
-			currentpoint->translate( 0.03*(xpos-prexpos), 0.03*(preypos-ypos), 0);
+			if (currentpoint % 3 == 1)
+			{
+				controlpoints[currentpoint]->translate(0.03*(xpos - prexpos), 0.03*(preypos - ypos), 0);
+
+				controlpoints[(currentpoint + 1) % 24]->translate(0.03f*(xpos - prexpos), 0.03f*(preypos - ypos), 0);
+				controlpoints[(currentpoint + 23) % 24]->translate(0.03f*(xpos - prexpos), 0.03f*(preypos - ypos), 0);
+			}
+			else if (currentpoint % 3 == 2)
+			{
+				glm::vec3 mid = controlpoints[(currentpoint + 23) % 24]->toParent[3];
+				glm::vec3 pre = controlpoints[(currentpoint + 22) % 24]->toParent[3];
+				glm::vec3 cur = controlpoints[(currentpoint)]->toParent[3];
+				controlpoints[currentpoint]->translate(0.03*(xpos - prexpos), 0.03*(preypos - ypos), 0);
+
+				float midtocurr = glm::length(mid - cur);
+				float midtopre = glm::length(mid - pre);
+				cur = controlpoints[(currentpoint)]->toParent[3];
+				root->removeChild(controlpoints[(currentpoint + 22) % 24]);
+				controlpoints[(currentpoint + 22) % 24] = new Transform(glm::translate(glm::mat4(1.0f),midtopre*glm::normalize(mid - cur) + mid));
+				controlpoints[(currentpoint + 22) % 24]->addChild(point);
+				controlpoints[(currentpoint + 22) % 24]->scale(0.1,0.1,0.1);
+				controlpoints[(currentpoint + 22) % 24]->color= glm::vec3(0, 1, (float)((currentpoint + 22) % 24)/ 255.0f);
+
+				root->addChild(controlpoints[(currentpoint + 22) % 24]);
+				//float xdis = -midtopre*(0.03*(xpos - prexpos) / midtocurr);
+				//float ydis = -midtopre*(0.03*(preypos-ypos) / midtocurr);
+				//controlpoints[(currentpoint + 22) % 24]->translate(xdis, ydis, 0);
+
+			}
+			else if (currentpoint % 3 == 0)
+			{
+
+				glm::vec3 mid = controlpoints[(currentpoint + 1) % 24]->toParent[3];
+				glm::vec3 nex = controlpoints[(currentpoint + 2) % 24]->toParent[3];
+				glm::vec3 cur = controlpoints[(currentpoint)]->toParent[3];
+				controlpoints[currentpoint]->translate(0.03*(xpos - prexpos), 0.03*(preypos - ypos), 0);
+
+				float midtocurr = glm::length(mid - cur);
+				float midtopre = glm::length(mid - nex);
+				
+				cur = controlpoints[(currentpoint)]->toParent[3];
+				root->removeChild(controlpoints[(currentpoint + 2) % 24]);
+				controlpoints[(currentpoint + 2) % 24] = new Transform(glm::translate(glm::mat4(1.0f), midtopre*glm::normalize(mid - cur) + mid));
+				controlpoints[(currentpoint + 2) % 24]->addChild(point);
+				controlpoints[(currentpoint + 2) % 24]->scale(0.1, 0.1, 0.1);
+				controlpoints[(currentpoint + 2) % 24]->color = glm::vec3(0, 1, (float)((currentpoint + 2) % 24) / 255.0f);
+
+				root->addChild(controlpoints[(currentpoint + 2) % 24]);
+				//float xdis = -midtopre*(0.03*(xpos - prexpos) / midtocurr);
+				//float ydis = -midtopre*(0.03*(preypos - ypos) / midtocurr);
+
+				//controlpoints[(currentpoint + 2) % 24]->translate(xdis, ydis, 0);
+			}
+
+			linevertices.clear();
+			for (int i = 0; i < 8; i++) {
+				glm::vec4 p0 = controlpoints[i * 3 + 1]->toParent[3];
+				glm::vec4 p1 = controlpoints[i * 3 + 2]->toParent[3];
+				glm::vec4 p2 = controlpoints[(i * 3 + 3) % 24]->toParent[3];
+				glm::vec4 p3 = controlpoints[(i * 3 + 4) % 24]->toParent[3];
+				for (int j = 0; j < 150; j++)
+				{
+					float t = (float)j / 150.0f;
+					glm::vec3 temp = pow(1 - t, 3)*p0 + 3 * pow(1 - t, 2)*t*p1 + 3 * (1 - t)*t*t*p2 + t*t*t*p3;
+					linevertices.push_back(temp);
+				}
+			}
+			glBindVertexArray(VAO);
+			glBindBuffer(GL_ARRAY_BUFFER, VBO);
+			glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3)*linevertices.size(), &linevertices[0], GL_STATIC_DRAW);
+			glEnableVertexAttribArray(0);
+			glVertexAttribPointer(0,// This first parameter x should be the same as the number passed into the line "layout (location = x)" in the vertex shader. In this case, it's 0. Valid values are 0 to GL_MAX_UNIFORM_LOCATIONS.
+				3, // This second line tells us how any components there are per vertex. In this case, it's 3 (we have an x, y, and z component)
+				GL_FLOAT, // What type these components are
+				GL_FALSE, // GL_TRUE means the values should be normalized. GL_FALSE means they shouldn't
+				3 * sizeof(GLfloat), // Offset between consecutive indices. Since each of our vertices have 3 floats, they should have the size of 3 floats in between
+				(GLvoid*)0);
+			glBindBuffer(GL_ARRAY_BUFFER, 0);
+			glBindVertexArray(0);
+
+			controlhandles.clear();
+			for (int i = 0; i < controlpoints.size(); i++)
+			{
+				if (i % 3 != 1)
+				{
+					controlhandles.push_back(controlpoints[i]->toParent[3]);
+				}
+			}
+			glBindVertexArray(VAO2);
+			glBindBuffer(GL_ARRAY_BUFFER, VBO2);
+			glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3)*controlhandles.size(), &controlhandles[0], GL_STATIC_DRAW);
+			glEnableVertexAttribArray(0);
+			glVertexAttribPointer(0,// This first parameter x should be the same as the number passed into the line "layout (location = x)" in the vertex shader. In this case, it's 0. Valid values are 0 to GL_MAX_UNIFORM_LOCATIONS.
+				3, // This second line tells us how any components there are per vertex. In this case, it's 3 (we have an x, y, and z component)
+				GL_FLOAT, // What type these components are
+				GL_FALSE, // GL_TRUE means the values should be normalized. GL_FALSE means they shouldn't
+				3 * sizeof(GLfloat), // Offset between consecutive indices. Since each of our vertices have 3 floats, they should have the size of 3 floats in between
+				(GLvoid*)0);
+			glBindBuffer(GL_ARRAY_BUFFER, 0);
+			glBindVertexArray(0);
 		}
 		prexpos = xpos;
 		preypos = ypos;
