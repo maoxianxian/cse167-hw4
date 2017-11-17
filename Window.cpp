@@ -50,9 +50,9 @@ void Window::initialize_objects()
 	shader2 = LoadShaders(SHADER2_PATH, FRAG2_PATH);
 	shader3 = LoadShaders(SHADER3_PATH, FRAG3_PATH);
 	point = new Geometry("C:\\Users\\c7ye\\Desktop\\CSE167StarterCode2-master\\sphere.obj");
-	 car = new Transform(glm::mat4(1.0f));
-	 car->addChild(point);
-	 car->scale(0.5, 0.5, 0.5);
+	car = new Transform(glm::mat4(1.0f));
+	car->addChild(point);
+	car->scale(5, 5, 5);
 	for (int i = 0; i < 24; i++)
 	{
 		Transform * temp = new Transform(glm::mat4(1.0f));
@@ -330,13 +330,13 @@ void Window::display_callback(GLFWwindow* window)
 	glUseProgram(shaderProgram);
 	cbe->draw(shaderProgram);
 	glUseProgram(shader2);
+	drawCurves();
 	root->draw(shader2,glm::mat4(1.0f));
 	glUseProgram(shader3);
 	glUniformMatrix4fv(glGetUniformLocation(shader3, "view"), 1, GL_FALSE,&V[0][0]);
 	glUniform3fv(glGetUniformLocation(shader3, "cameraPos"), 1, &cam_pos[0]);
 
 	car->draw(shader3,glm::mat4(1.0f));
-	drawCurves();
 	// Render the cube	
 	int state = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
 	if (state == GLFW_PRESS)

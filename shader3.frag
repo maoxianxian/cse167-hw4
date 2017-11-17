@@ -9,6 +9,6 @@ out vec4 color;
 void main()
 {
     vec3 I = normalize(Position - cameraPos);
-    vec3 R = reflect(I, normalize(Normal));
-	color = texture(skybox, reflected);
+    vec3 R = reflect(I, normalize(outNormal));
+	color = texture(skybox, R);
 }
