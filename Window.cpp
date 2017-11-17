@@ -332,6 +332,9 @@ void Window::display_callback(GLFWwindow* window)
 	glUseProgram(shader2);
 	root->draw(shader2,glm::mat4(1.0f));
 	glUseProgram(shader3);
+	glUniformMatrix4fv(glGetUniformLocation(shader3, "view"), 1, GL_FALSE,&V[0][0]);
+	glUniform3fv(glGetUniformLocation(shader3, "cameraPos"), 1, &cam_pos[0]);
+
 	car->draw(shader3,glm::mat4(1.0f));
 	drawCurves();
 	// Render the cube	

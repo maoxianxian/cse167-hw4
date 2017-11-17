@@ -1,10 +1,14 @@
 #version 330 core
-// This is a sample fragment shader.
+
 uniform samplerCube skybox;
-in vec3 fragTexCoord;
-// You can output many things. The first vec4 type output determines the color of the fragment
+uniform mat4 V;
+in vec3 outNormal;
+in vec3 Position;
+uniform vec3 cameraPos;
 out vec4 color;
 void main()
 {
-	color = texture(skybox, fragTexCoord);
+    vec3 I = normalize(Position - cameraPos);
+    vec3 R = reflect(I, normalize(Normal));
+	color = texture(skybox, reflected);
 }
