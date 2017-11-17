@@ -11,6 +11,8 @@ GLint shaderProgram;
 GLint shader2;
 GLint shader3;
 GLuint VBO, VAO, VAO2,VBO2;
+float velocity=1;
+float totalenegy = 10.0f;
 Cube *cbe;
 // On some systems you need to change this to the absolute path
 #define VERTEX_SHADER_PATH "../shader.vert"
@@ -31,9 +33,7 @@ glm::mat4 Window::P;
 glm::mat4 Window::V;
 
 int index = 1;
-
-double lastTime;
-int nbFrames = 0;
+float count = 0;
 Transform * root;
 std::vector<Transform*> controlpoints;
 int currentpoint;
@@ -75,9 +75,9 @@ void Window::initialize_objects()
 		glm::vec4 p1 = controlpoints[i * 3 + 2]->toParent[3];
 		glm::vec4 p2 = controlpoints[(i * 3 + 3)%24]->toParent[3];
 		glm::vec4 p3 = controlpoints[(i * 3 + 4) % 24]->toParent[3];
-		for (int j = 0; j < 150; j++)
+		for (int j = 0; j < 200; j++)
 		{
-			float t = (float)j / 150.0f;
+			float t = (float)j / 200.0f;
 			glm::vec3 temp = pow(1 - t, 3)*p0 + 3 * pow(1 - t, 2)*t*p1 + 3 * (1 - t)*t*t*p2 + t*t*t*p3;
 			linevertices.push_back(temp);
 		}
@@ -120,8 +120,6 @@ void Window::initialize_objects()
 		(GLvoid*)0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
-
-	std::cout << controlhandles.size() << std::endl;
 	cbe= new Cube();
 }
 
@@ -310,7 +308,7 @@ void Window::drawCurves()
 	glUniformMatrix4fv(uProjection, 1, GL_FALSE, &P[0][0]);
 	glUniformMatrix4fv(uModelview, 1, GL_FALSE, &modelview[0][0]);
 	glBindVertexArray(VAO);
-	glDrawArrays(GL_LINE_STRIP, 0, 1200);
+	glDrawArrays(GL_LINE_STRIP, 0, 1600);
 	glBindVertexArray(0);
 	
 	glUniform3fv(glGetUniformLocation(shader2, "id"), 1, &glm::vec3(0, 0, 1)[0]);
@@ -335,8 +333,22 @@ void Window::display_callback(GLFWwindow* window)
 	glUseProgram(shader3);
 	glUniformMatrix4fv(glGetUniformLocation(shader3, "view"), 1, GL_FALSE,&V[0][0]);
 	glUniform3fv(glGetUniformLocation(shader3, "cameraPos"), 1, &cam_pos[0]);
-
+	int i = (int)((int)count / 200);
+	glm::vec4 p0 = controlpoints[i*3+1]->toParent[3];
+	glm::vec4 p1 = controlpoints[i*3+2]->toParent[3];
+	glm::vec4 p2 = controlpoints[(i*3+3) % 24]->toParent[3];
+	glm::vec4 p3 = controlpoints[(i*3+4) % 24]->toParent[3];
+	float t = float(count) / 200.0f - i;
+	glm::vec3 temp = pow(1 - t, 3)*p0 + 3 * pow(1 - t, 2)*t*p1 + 3 * (1 - t)*t*t*p2 + t*t*t*p3;
+	car->toParent = glm::translate(glm::mat4(1.0f), temp);
 	car->draw(shader3,glm::mat4(1.0f));
+	if (totalenegy * 2 - 2 * car->toParent[3][1] > 0.3) {
+		velocity = sqrt(totalenegy * 2 - 2 * car->toParent[3][1]);
+	}
+	else
+	{
+		velocity = 0.3;
+	}
 	// Render the cube	
 	int state = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
 	if (state == GLFW_PRESS)
@@ -395,7 +407,6 @@ void Window::display_callback(GLFWwindow* window)
 				root->addChild(controlpoints[(currentpoint + 2) % 24]);
 				//float xdis = -midtopre*(0.03*(xpos - prexpos) / midtocurr);
 				//float ydis = -midtopre*(0.03*(preypos - ypos) / midtocurr);
-
 				//controlpoints[(currentpoint + 2) % 24]->translate(xdis, ydis, 0);
 			}
 
@@ -405,9 +416,9 @@ void Window::display_callback(GLFWwindow* window)
 				glm::vec4 p1 = controlpoints[i * 3 + 2]->toParent[3];
 				glm::vec4 p2 = controlpoints[(i * 3 + 3) % 24]->toParent[3];
 				glm::vec4 p3 = controlpoints[(i * 3 + 4) % 24]->toParent[3];
-				for (int j = 0; j < 150; j++)
+				for (int j = 0; j < 200; j++)
 				{
-					float t = (float)j / 150.0f;
+					float t = (float)j / 200.0f;
 					glm::vec3 temp = pow(1 - t, 3)*p0 + 3 * pow(1 - t, 2)*t*p1 + 3 * (1 - t)*t*t*p2 + t*t*t*p3;
 					linevertices.push_back(temp);
 				}
@@ -453,6 +464,11 @@ void Window::display_callback(GLFWwindow* window)
 	glfwPollEvents();
 	// Swap buffers
 	glfwSwapBuffers(window);
+	count+=velocity;
+	if (count > 1600)
+	{
+		count -= 1600;
+	}
 }
 glm::vec3 Window::trackmap(double x, double y)
 {

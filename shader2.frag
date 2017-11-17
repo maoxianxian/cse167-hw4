@@ -5,5 +5,4 @@ uniform vec3 id;
 void main()
 {
     		color = vec4(id, 1.0f);
-
 }
