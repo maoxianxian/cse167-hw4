@@ -11,7 +11,10 @@ GLint shaderProgram;
 GLint shader2;
 GLint shader3;
 GLuint VBO, VAO, VAO2,VBO2;
+bool forward = true;
 float velocity=1;
+bool rider = false;
+bool pause = false;
 float totalenegy = 10.0f;
 Cube *cbe;
 // On some systems you need to change this to the absolute path
@@ -22,9 +25,9 @@ Cube *cbe;
 #define FRAG2_PATH "../shader2.frag"
 #define FRAG3_PATH "../shader3.frag"
 // Default camera parameters
-glm::vec3 cam_pos(0.0f, 0.0f, 20.0f);		// e  | Position of camera
-glm::vec3 cam_look_at(0.0f, 0.0f, 0.0f);	// d  | This is where the camera looks at
-glm::vec3 cam_up(0.0f, 1.0f, 0.0f);			// up | What orientation "up" is
+glm::vec3 cam_pos(0.0f, 0.0f, 20.0f);		
+glm::vec3 cam_look_at(0.0f, 0.0f, 0.0f);	
+glm::vec3 cam_up(0.0f, 1.0f, 0.0f);			
 
 int Window::width;
 int Window::height;
@@ -37,7 +40,9 @@ float count = 0;
 Transform * root;
 std::vector<Transform*> controlpoints;
 int currentpoint;
+float totallength;
 std::vector<glm::vec3> linevertices;
+std::vector<float> curvelength;
 std::vector<glm::vec3> controlhandles;
 Geometry * point;
 Transform*car;
@@ -75,14 +80,23 @@ void Window::initialize_objects()
 		glm::vec4 p1 = controlpoints[i * 3 + 2]->toParent[3];
 		glm::vec4 p2 = controlpoints[(i * 3 + 3)%24]->toParent[3];
 		glm::vec4 p3 = controlpoints[(i * 3 + 4) % 24]->toParent[3];
+		float length=0;
+		glm::vec3 pre;
 		for (int j = 0; j < 200; j++)
 		{
 			float t = (float)j / 200.0f;
 			glm::vec3 temp = pow(1 - t, 3)*p0 + 3 * pow(1 - t, 2)*t*p1 + 3 * (1 - t)*t*t*p2 + t*t*t*p3;
+			if (j != 0)
+			{
+				length+=glm::length(pre - temp);
+			}
 			linevertices.push_back(temp);
+			pre = temp;
 		}
+		curvelength.push_back(length);
+		totallength += length;
 	}
-	
+	//std::cout << curvelength[0] << " " << curvelength[1] << " " << curvelength[7]<<" "<<totallength << std::endl;
 	glGenVertexArrays(1, &VAO);
 	glGenBuffers(1, &VBO);
 	glBindVertexArray(VAO);
@@ -341,13 +355,41 @@ void Window::display_callback(GLFWwindow* window)
 	float t = float(count) / 200.0f - i;
 	glm::vec3 temp = pow(1 - t, 3)*p0 + 3 * pow(1 - t, 2)*t*p1 + 3 * (1 - t)*t*t*p2 + t*t*t*p3;
 	car->toParent = glm::translate(glm::mat4(1.0f), temp);
-	car->draw(shader3,glm::mat4(1.0f));
+	if (!rider) {
+		car->draw(shader3, glm::mat4(1.0f));
+	}
 	if (totalenegy * 2 - 2 * car->toParent[3][1] > 0.3) {
-		velocity = sqrt(totalenegy * 2 - 2 * car->toParent[3][1]);
+		velocity = sqrt(totalenegy * 2 - 2 * car->toParent[3][1])*0.1f*(totallength/curvelength[i]);
 	}
 	else
 	{
-		velocity = 0.3;
+		velocity = 0.2;
+	}
+	/*if (totalenegy * 2 - 2 * car->toParent[3][1] > 0) {
+		if (forward)
+		{
+			velocity = sqrt(totalenegy * 2 - 2 * car->toParent[3][1])*0.1f*(totallength/curvelength[i]);
+		}
+		else
+		{
+			velocity = -sqrt(totalenegy * 2 - 2 * car->toParent[3][1])*0.1f*(totallength / curvelength[i]);
+		}
+	}
+	else
+	{
+		forward = !forward;
+		if (forward)
+		{
+			velocity = sqrt(-(totalenegy * 2 - 2 * car->toParent[3][1]))*0.1f*(totallength / curvelength[i]);
+		}
+		else
+		{
+			velocity = -sqrt(-(totalenegy * 2 - 2 * car->toParent[3][1]))*0.1f*(totallength / curvelength[i]);
+		}
+	}*/
+	if (pause)
+	{
+		velocity = 0;
 	}
 	// Render the cube	
 	int state = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
@@ -411,17 +453,28 @@ void Window::display_callback(GLFWwindow* window)
 			}
 
 			linevertices.clear();
+			curvelength.clear();
+			totallength = 0;
 			for (int i = 0; i < 8; i++) {
 				glm::vec4 p0 = controlpoints[i * 3 + 1]->toParent[3];
 				glm::vec4 p1 = controlpoints[i * 3 + 2]->toParent[3];
 				glm::vec4 p2 = controlpoints[(i * 3 + 3) % 24]->toParent[3];
 				glm::vec4 p3 = controlpoints[(i * 3 + 4) % 24]->toParent[3];
+				float length = 0;
+				glm::vec3 pre;
 				for (int j = 0; j < 200; j++)
 				{
 					float t = (float)j / 200.0f;
 					glm::vec3 temp = pow(1 - t, 3)*p0 + 3 * pow(1 - t, 2)*t*p1 + 3 * (1 - t)*t*t*p2 + t*t*t*p3;
+					if (j != 0)
+					{
+						length += glm::length(pre - temp);
+					}
 					linevertices.push_back(temp);
+					pre = temp;
 				}
+				curvelength.push_back(length);
+				totallength += length;
 			}
 			glBindVertexArray(VAO);
 			glBindBuffer(GL_ARRAY_BUFFER, VBO);
@@ -469,6 +522,18 @@ void Window::display_callback(GLFWwindow* window)
 	{
 		count -= 1600;
 	}
+	if (count < 0)
+	{
+		count += 1600;
+	}
+	if (rider)
+	{
+		cam_pos = pow(1 - t, 3)*p0 + 3 * pow(1 - t, 2)*t*p1 + 3 * (1 - t)*t*t*p2 + t*t*t*p3;
+		cam_look_at = glm::vec3(-3 * (1 - t)*(1 - t)*p0 + (9 * t*t - 12 * t + 3)*p1 + (-9 * t*t + 6 * t)*p2 + 3 * t*t*p3) + cam_pos;
+		cam_up = glm::cross(glm::vec3(-3 * (1 - t)*(1 - t)*p0 + (9 * t*t - 12 * t + 3)*p1 + (-9 * t*t + 6 * t)*p2 + 3 * t*t*p3), glm::vec3(0, 0, -1));
+		V = glm::lookAt(cam_pos, cam_look_at, cam_up);
+	}
+	//std::cout<<cam_
 }
 glm::vec3 Window::trackmap(double x, double y)
 {
@@ -491,6 +556,34 @@ void Window::key_callback(GLFWwindow* window, int key, int scancode, int action,
 		{
 			// Close the window. This causes the program to also terminate.
 			glfwSetWindowShouldClose(window, GL_TRUE);
+		}
+		if (key == GLFW_KEY_P)
+		{
+			pause = !pause;
+		}
+		if (key == GLFW_KEY_C)
+		{
+			if (rider)
+			{
+				cam_pos=glm::vec3(0.0f, 0.0f, 20.0f);
+				cam_look_at=glm::vec3(0.0f, 0.0f, 0.0f);
+				cam_up=glm::vec3(0.0f, 1.0f, 0.0f);
+				V = glm::lookAt(cam_pos, cam_look_at, cam_up);
+			}
+			else
+			{
+				int i = (int)((int)count / 200);
+				glm::vec4 p0 = controlpoints[i * 3 + 1]->toParent[3];
+				glm::vec4 p1 = controlpoints[i * 3 + 2]->toParent[3];
+				glm::vec4 p2 = controlpoints[(i * 3 + 3) % 24]->toParent[3];
+				glm::vec4 p3 = controlpoints[(i * 3 + 4) % 24]->toParent[3];
+				float t = float(count) / 200.0f - i;
+				cam_pos = pow(1 - t, 3)*p0 + 3 * pow(1 - t, 2)*t*p1 + 3 * (1 - t)*t*t*p2 + t*t*t*p3;
+				cam_look_at = glm::vec3(-3 * (1 - t)*(1 - t)*p0 + (9 * t*t - 12 * t + 3)*p1 + (-9 * t*t + 6 * t)*p2 + 3 * t*t*p3)+cam_pos;
+				cam_up = glm::cross(cam_look_at, glm::vec3(0, 0, -1));
+				V = glm::lookAt(cam_pos, cam_look_at, cam_up);
+			}
+			rider = !rider;
 		}
 	}
 	if (action == GLFW_REPEAT)
