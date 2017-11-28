@@ -15,7 +15,10 @@ bool forward = true;
 float velocity=1;
 bool rider = false;
 bool pause = false;
-float totalenegy = 10.0f;
+float highpoint = 0;;
+float totalenegy = 0;
+int highcurve = 0;
+float hight = 0;;
 Cube *cbe;
 // On some systems you need to change this to the absolute path
 #define VERTEX_SHADER_PATH "../shader.vert"
@@ -96,7 +99,6 @@ void Window::initialize_objects()
 		curvelength.push_back(length);
 		totallength += length;
 	}
-	//std::cout << curvelength[0] << " " << curvelength[1] << " " << curvelength[7]<<" "<<totallength << std::endl;
 	glGenVertexArrays(1, &VAO);
 	glGenBuffers(1, &VBO);
 	glBindVertexArray(VAO);
@@ -313,7 +315,6 @@ void Window::mouse_callback(GLFWwindow* window, int button, int action, int mods
 }
 void Window::drawCurves()
 {
-	glUniform3fv(glGetUniformLocation(shader2, "id"), 1, &glm::vec3(0,0,0)[0]);
 	glm::mat4 modelview = V;
 	GLuint uProjection = glGetUniformLocation(shader2, "projection");
 	GLuint uModelview = glGetUniformLocation(shader2, "modelview");
@@ -322,12 +323,17 @@ void Window::drawCurves()
 	glUniformMatrix4fv(uProjection, 1, GL_FALSE, &P[0][0]);
 	glUniformMatrix4fv(uModelview, 1, GL_FALSE, &modelview[0][0]);
 	glBindVertexArray(VAO);
-	glDrawArrays(GL_LINE_STRIP, 0, 1600);
+	glUniform3fv(glGetUniformLocation(shader2, "id"), 1, &glm::vec3(0, 0, 0)[0]);
+
+	glDrawArrays(GL_LINE_STRIP, 200, 1400);
+	glUniform3fv(glGetUniformLocation(shader2, "id"), 1, &glm::vec3(0, 1, 1)[0]);
+
+	glDrawArrays(GL_LINE_STRIP, 0, 200);
+
 	glBindVertexArray(0);
 	
 	glUniform3fv(glGetUniformLocation(shader2, "id"), 1, &glm::vec3(0, 0, 1)[0]);
 	glBindVertexArray(VAO2);
-	//std::cout << controlhandles.size() << std::endl;
 	glDrawArrays(GL_LINES, 0, 16);
 	glBindVertexArray(0);
 
@@ -363,8 +369,18 @@ void Window::display_callback(GLFWwindow* window)
 	}
 	else
 	{
-		velocity = 0.2;
+		velocity = 0.1;
 	}
+	//std::cout << totalenegy << std::endl;
+	float p=curvelength[0] / totallength;
+	/*if (i == 0)
+	{
+		totalenegy += 0.25;
+	}
+	else if(totalenegy>0)
+	{
+		totalenegy -= 0.04;
+	}*/
 	/*if (totalenegy * 2 - 2 * car->toParent[3][1] > 0) {
 		if (forward)
 		{
@@ -397,21 +413,22 @@ void Window::display_callback(GLFWwindow* window)
 	{
 		double xpos, ypos;
 		glfwGetCursorPos(window, &xpos, &ypos);
+		
 		if (currentpoint>=0&&(xpos != prexpos || ypos != preypos))
 		{
 			if (currentpoint % 3 == 1)
 			{
-				controlpoints[currentpoint]->translate(0.03*(xpos - prexpos), 0.03*(preypos - ypos), 0);
+				controlpoints[currentpoint]->translate(glm::inverse(V)*glm::inverse(P)*glm::vec4(0.03f*(xpos - prexpos), 0.03f*(preypos - ypos), 0, 0));
 
-				controlpoints[(currentpoint + 1) % 24]->translate(0.03f*(xpos - prexpos), 0.03f*(preypos - ypos), 0);
-				controlpoints[(currentpoint + 23) % 24]->translate(0.03f*(xpos - prexpos), 0.03f*(preypos - ypos), 0);
+				controlpoints[(currentpoint + 1) % 24]->translate(glm::inverse(V)*glm::inverse(P)*glm::vec4(0.03f*(xpos - prexpos), 0.03f*(preypos - ypos), 0,0));
+				controlpoints[(currentpoint + 23) % 24]->translate(glm::inverse(V)*glm::inverse(P)*glm::vec4(0.03f*(xpos - prexpos), 0.03f*(preypos - ypos), 0, 0));
 			}
 			else if (currentpoint % 3 == 2)
 			{
 				glm::vec3 mid = controlpoints[(currentpoint + 23) % 24]->toParent[3];
 				glm::vec3 pre = controlpoints[(currentpoint + 22) % 24]->toParent[3];
 				glm::vec3 cur = controlpoints[(currentpoint)]->toParent[3];
-				controlpoints[currentpoint]->translate(0.03*(xpos - prexpos), 0.03*(preypos - ypos), 0);
+				controlpoints[currentpoint]->translate(glm::inverse(V)*glm::inverse(P)*glm::vec4(0.03f*(xpos - prexpos), 0.03f*(preypos - ypos), 0, 0));
 
 				float midtocurr = glm::length(mid - cur);
 				float midtopre = glm::length(mid - pre);
@@ -434,7 +451,7 @@ void Window::display_callback(GLFWwindow* window)
 				glm::vec3 mid = controlpoints[(currentpoint + 1) % 24]->toParent[3];
 				glm::vec3 nex = controlpoints[(currentpoint + 2) % 24]->toParent[3];
 				glm::vec3 cur = controlpoints[(currentpoint)]->toParent[3];
-				controlpoints[currentpoint]->translate(0.03*(xpos - prexpos), 0.03*(preypos - ypos), 0);
+				controlpoints[currentpoint]->translate(glm::inverse(V)*glm::inverse(P)*glm::vec4(0.03f*(xpos - prexpos), 0.03f*(preypos - ypos), 0, 0));
 
 				float midtocurr = glm::length(mid - cur);
 				float midtopre = glm::length(mid - nex);
@@ -455,6 +472,7 @@ void Window::display_callback(GLFWwindow* window)
 			linevertices.clear();
 			curvelength.clear();
 			totallength = 0;
+			float temphigh = -999;
 			for (int i = 0; i < 8; i++) {
 				glm::vec4 p0 = controlpoints[i * 3 + 1]->toParent[3];
 				glm::vec4 p1 = controlpoints[i * 3 + 2]->toParent[3];
@@ -466,6 +484,12 @@ void Window::display_callback(GLFWwindow* window)
 				{
 					float t = (float)j / 200.0f;
 					glm::vec3 temp = pow(1 - t, 3)*p0 + 3 * pow(1 - t, 2)*t*p1 + 3 * (1 - t)*t*t*p2 + t*t*t*p3;
+					if (temp.y > temphigh)
+					{
+						temphigh = temp.y;
+						highcurve = i;
+						hight = t;
+					}
 					if (j != 0)
 					{
 						length += glm::length(pre - temp);
@@ -473,9 +497,15 @@ void Window::display_callback(GLFWwindow* window)
 					linevertices.push_back(temp);
 					pre = temp;
 				}
+				
 				curvelength.push_back(length);
 				totallength += length;
 			}
+			std::cout << temphigh << std::endl;
+
+			highpoint = temphigh;
+			totalenegy = highpoint;
+
 			glBindVertexArray(VAO);
 			glBindBuffer(GL_ARRAY_BUFFER, VBO);
 			glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3)*linevertices.size(), &linevertices[0], GL_STATIC_DRAW);
@@ -509,6 +539,24 @@ void Window::display_callback(GLFWwindow* window)
 				(GLvoid*)0);
 			glBindBuffer(GL_ARRAY_BUFFER, 0);
 			glBindVertexArray(0);
+
+		}
+		else if (xpos != prexpos || ypos != preypos)
+		{
+			glm::vec3 prevec = trackmap(prexpos, preypos);
+			glm::vec3 curvec = trackmap(xpos, ypos);
+			glm::vec3 res = glm::cross(prevec, curvec);
+			float cos = glm::dot(prevec, curvec) / (glm::length(prevec)*glm::length(curvec));
+			if (cos > 1)
+			{
+				cos = 1;
+			}
+			float deg = acos(cos);
+			if (!rider) {
+				cam_pos = glm::rotate(glm::mat4(1.0f), deg, res)*glm::vec4(cam_pos, 1.0);
+				cam_up = glm::rotate(glm::mat4(1.0f), deg, res)*glm::vec4(cam_up, 1.0);
+				V = glm::lookAt(cam_pos, cam_look_at, cam_up);
+			}
 		}
 		prexpos = xpos;
 		preypos = ypos;
@@ -530,10 +578,10 @@ void Window::display_callback(GLFWwindow* window)
 	{
 		cam_pos = pow(1 - t, 3)*p0 + 3 * pow(1 - t, 2)*t*p1 + 3 * (1 - t)*t*t*p2 + t*t*t*p3;
 		cam_look_at = glm::vec3(-3 * (1 - t)*(1 - t)*p0 + (9 * t*t - 12 * t + 3)*p1 + (-9 * t*t + 6 * t)*p2 + 3 * t*t*p3) + cam_pos;
-		cam_up = glm::cross(glm::vec3(-3 * (1 - t)*(1 - t)*p0 + (9 * t*t - 12 * t + 3)*p1 + (-9 * t*t + 6 * t)*p2 + 3 * t*t*p3), glm::vec3(0, 0, -1));
+		//cam_up = glm::cross(glm::vec3(-3 * (1 - t)*(1 - t)*p0 + (9 * t*t - 12 * t + 3)*p1 + (-9 * t*t + 6 * t)*p2 + 3 * t*t*p3), glm::vec3(0, 0, -1));
+		cam_up = glm::vec3(0, 1, 0);
 		V = glm::lookAt(cam_pos, cam_look_at, cam_up);
 	}
-	//std::cout<<cam_
 }
 glm::vec3 Window::trackmap(double x, double y)
 {
@@ -560,6 +608,10 @@ void Window::key_callback(GLFWwindow* window, int key, int scancode, int action,
 		if (key == GLFW_KEY_P)
 		{
 			pause = !pause;
+		}
+		if (key == GLFW_KEY_T)
+		{
+			count=highcurve*200+hight;
 		}
 		if (key == GLFW_KEY_C)
 		{
